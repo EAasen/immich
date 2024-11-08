@@ -16,6 +16,7 @@ import 'package:immich_mobile/utils/hash.dart';
 import 'package:isar/isar.dart';
 import 'package:logging/logging.dart';
 import 'package:openapi/api.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class AuthenticationNotifier extends StateNotifier<AuthenticationState> {
   AuthenticationNotifier(
@@ -100,13 +101,21 @@ class AuthenticationNotifier extends StateNotifier<AuthenticationState> {
     try {
       String? userEmail = Store.tryGet(StoreKey.currentUser)?.email;
 
-      await _apiService.authenticationApi
-          .logout()
-          .then((_) => log.info("Logout was successful for $userEmail"))
-          .onError(
-            (error, stackTrace) =>
-                log.severe("Logout failed for $userEmail", error, stackTrace),
-          );
+      final connectivityResult = await (Connectivity().checkConnectivity());
+      if (connectivityResult != ConnectivityResult.none) {
+        await _apiService.authenticationApi
+            .logout()
+            .then((_) => log.info("Logout was successful for $userEmail"))
+            .onError(
+              (error, stackTrace) => log.severe(
+                "Logout failed for $userEmail",
+                error,
+                stackTrace,
+              ),
+            );
+      } else {
+        log.info("Skipping server logout due to no connectivity");
+      }
 
       await Future.wait([
         clearAssetsAndAlbums(_db),
